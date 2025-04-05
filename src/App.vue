@@ -19,6 +19,22 @@
       <button @click="startGame">Start Game</button>
     </div>
   </div>
+  <div v-if="showShop" class="shop">
+    <h2>Shop - Level {{ currentLevel + 1 }}</h2>
+    <p>Current Score: {{ score }}</p>
+    <div class="buff-list">
+      <div v-for="(buff, index) in availableBuffs" :key="index" class="buff-item">
+        <h3>{{ buff.name }} ({{ buff.cost }} points)</h3>
+        <p>{{ buff.description }}</p>
+        <button @click="purchaseBuff(buff)" :disabled="score < buff.cost">
+          {{ score >= buff.cost ? 'Buy' : 'Not enough points' }}
+        </button>
+      </div>
+    </div>
+    <button @click="proceedToNextLevel" class="proceed-button">
+      Proceed to Next Level
+    </button>
+  </div>
 </template>
 
 <script setup>
@@ -37,6 +53,35 @@ const currentLevel = ref(1);
 const maxLevels = 3;
 const screenShake = ref(0);
 const deathEffect = ref(0);
+
+const showShop = ref(false);
+const availableBuffs = ref([
+  {
+    name: 'Extra Life',
+    cost: 100,
+    description: 'Gain an additional life',
+    type: 'life'
+  },
+  {
+    name: 'Super Jump',
+    cost: 150,
+    description: 'Jump 25% higher',
+    type: 'jump'
+  },
+  {
+    name: 'Speed Boost',
+    cost: 200,
+    description: 'Move 20% faster',
+    type: 'speed'
+  },
+  {
+    name: 'Shield',
+    cost: 300,
+    description: 'Become invulnerable for first 10 seconds',
+    type: 'shield'
+  }
+]);
+
 
 // Game entities
 const player = reactive({
@@ -82,15 +127,15 @@ const startGame = () => {
 
 const initGame = () => {
   ctx = gameCanvas.value.getContext('2d');
-  
+
   score.value = 0;
   lives.value = 3;
   currentLevel.value = 1;
   gameOver.value = false;
-  
+
   setupLevel(currentLevel.value);
   gameLoop();
-  
+
   // Setup keyboard controls
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
@@ -100,7 +145,7 @@ const setupLevel = (level) => {
   // Reset entities
   enemies.value = [];
   coins.value = [];
-  
+
   // Reset player
   player.initialY = SCREEN_HEIGHT - 120;
   player.y = player.initialY;
@@ -111,26 +156,26 @@ const setupLevel = (level) => {
   player.invulnerable = false;
   player.invulnerableTimer = 0;
   player.name = playerName.value;
-  
+
   // Generate enemies based on level
   const numEnemies = level * 5;
   const safeZoneX = 150;
   const safeZoneY = 80;
-  
+
   for (let i = 0; i < numEnemies; i++) {
     let x, y;
-    
+
     // Find a safe position away from the player's spawn
     do {
       x = Math.floor(Math.random() * (SCREEN_WIDTH - 30));
       y = Math.floor(Math.random() * (SCREEN_HEIGHT - 30 - safeZoneY)) + safeZoneY;
     } while (
-      x >= player.initialX - safeZoneX && 
+      x >= player.initialX - safeZoneX &&
       x <= player.initialX + safeZoneX &&
-      y >= player.initialY - safeZoneX && 
+      y >= player.initialY - safeZoneX &&
       y <= player.initialY + safeZoneX
     );
-    
+
     enemies.value.push({
       x,
       y,
@@ -140,80 +185,99 @@ const setupLevel = (level) => {
       velocityY: Math.random() < 0.5 ? -2 : 2
     });
   }
+  player.speedMultiplier = 1;
+  player.hasShield = false;
+  // Giữ nguyên jumpPower giữa các màn
+};
+
+const proceedToNextLevel = () => {
+  showShop.value = false;
+  currentLevel.value++;
+  setupLevel(currentLevel.value);
 };
 
 const gameLoop = (timestamp) => {
   if (!lastTime) lastTime = timestamp;
   const deltaTime = timestamp - lastTime;
   lastTime = timestamp;
-  
+
   if (!gameOver.value) {
     update(deltaTime);
     render();
   }
-  
+
   animationFrameId = requestAnimationFrame(gameLoop);
 };
 
 const update = () => {
   const oldY = player.y;
-  
+
   // Update player
   updatePlayer();
-  
+
   // Update enemies
   updateEnemies();
-  
+
   // Update coins
   updateCoins();
-  
+
   // Check collisions
   checkCollisions(oldY);
-  
+
+  // Check level completion
+  if (enemies.value.length === 0) {
+        if (currentLevel.value < maxLevels) {
+            showShop.value = true;
+            gameStarted.value = false; // Tạm dừng game loop
+        } else {
+            gameOver.value = true;
+            gameOverMessage.value = 'You Win! Click to play again';
+        }
+    }
+
+  // Update effects
+  if (screenShake.value > 0) screenShake.value--;
+  if (deathEffect.value > 0) deathEffect.value--;
+
   // Check level completion
   if (enemies.value.length === 0) {
     if (currentLevel.value < maxLevels) {
-      currentLevel.value++;
-      setupLevel(currentLevel.value);
+      showShop.value = true;
     } else {
       gameOver.value = true;
       gameOverMessage.value = 'You Win! Click to play again';
     }
   }
-  
-  // Update effects
-  if (screenShake.value > 0) screenShake.value--;
-  if (deathEffect.value > 0) deathEffect.value--;
 };
 
 const updatePlayer = () => {
   // Apply gravity
   player.velocityY += 0.5;
-  
+
   // Apply velocity
   player.y += player.velocityY;
   player.x += player.velocityX;
-  
+
   // Check boundaries
   if (player.y + player.height > SCREEN_HEIGHT) {
     player.y = SCREEN_HEIGHT - player.height;
     player.jumping = false;
     player.velocityY = 0;
   }
-  
+
   if (player.y < 0) {
     player.y = 0;
     player.velocityY = 0;
   }
-  
+
   if (player.x < 0) {
     player.x = 0;
   }
-  
+
   if (player.x + player.width > SCREEN_WIDTH) {
     player.x = SCREEN_WIDTH - player.width;
   }
-  
+
   // Update invulnerability
   if (player.invulnerable) {
     player.invulnerableTimer++;
@@ -222,18 +286,52 @@ const updatePlayer = () => {
       player.invulnerableTimer = 0;
     }
   }
+
+  if (player.hasShield && currentLevel.value === 1) {
+    player.invulnerable = true;
+    setTimeout(() => {
+      player.invulnerable = false;
+      player.hasShield = false;
+    }, 10000);
+  }
+};
+
+const purchaseBuff = (buff) => {
+  if (score.value >= buff.cost) {
+    score.value -= buff.cost;
+    applyBuff(buff);
+  }
+};
+
+
+// Thêm hàm áp dụng buff
+const applyBuff = (buff) => {
+  switch (buff.type) {
+    case 'life':
+      lives.value++;
+      break;
+    case 'jump':
+      player.jumpPower = 1.25; // Tăng 25%
+      break;
+    case 'speed':
+      player.speedMultiplier = 1.2; // Tăng 20%
+      break;
+    case 'shield':
+      player.hasShield = true;
+      break;
+  }
 };
 
 const updateEnemies = () => {
   for (const enemy of enemies.value) {
     enemy.x += enemy.velocityX;
     enemy.y += enemy.velocityY;
-    
+
     // Bounce off walls
     if (enemy.x <= 0 || enemy.x + enemy.width >= SCREEN_WIDTH) {
       enemy.velocityX *= -1;
     }
-    
+
     if (enemy.y <= 80 || enemy.y + enemy.height >= SCREEN_HEIGHT) {
       enemy.velocityY *= -1;
     }
@@ -243,11 +341,11 @@ const updateEnemies = () => {
 const updateCoins = () => {
   for (let i = coins.value.length - 1; i >= 0; i--) {
     const coin = coins.value[i];
-    
+
     // Apply gravity
     coin.velocityY += 0.5;
     coin.y += coin.velocityY;
-    
+
     // Check floor
     if (coin.y + coin.height > SCREEN_HEIGHT) {
       coin.y = SCREEN_HEIGHT - coin.height;
@@ -262,17 +360,17 @@ const checkCollisions = (oldY) => {
     const coin = coins.value[i];
     if (checkRectCollision(player, coin)) {
       coins.value.splice(i, 1);
-      score.value += 10;
+      score.value += coin.value; // Sử dụng giá trị random của coin
     }
   }
-  
+
   // Check enemy collisions
   for (let i = enemies.value.length - 1; i >= 0; i--) {
     const enemy = enemies.value[i];
     if (checkRectCollision(player, enemy)) {
       // Check if player is jumping on enemy
-      if (oldY + player.height <= enemy.y + 10 && 
-          player.y + player.height >= enemy.y) {
+      if (oldY + player.height <= enemy.y + 10 &&
+        player.y + player.height >= enemy.y) {
         // Convert enemy to coins
         convertEnemyToCoins(enemy);
         enemies.value.splice(i, 1);
@@ -286,14 +384,16 @@ const checkCollisions = (oldY) => {
 };
 
 const convertEnemyToCoins = (enemy) => {
-  for (let i = 0; i < 3; i++) {
+  const coinCount = Math.floor(Math.random() * 3) + 2; // 2-4 coins
+  for (let i = 0; i < coinCount; i++) {
     coins.value.push({
       x: enemy.x + Math.random() * 20 - 10,
       y: enemy.y + Math.random() * 20 - 10,
       width: 15,
       height: 15,
       velocityY: -10,
-      velocityX: 0
+      velocityX: 0,
+      value: Math.floor(Math.random() * 15) + 5 // 5-20 điểm mỗi coin
     });
   }
 };
@@ -305,7 +405,7 @@ const playerDie = () => {
   player.invulnerable = true;
   screenShake.value = 30;
   deathEffect.value = 60;
-  
+
   if (lives.value <= 0) {
     gameOver.value = true;
     gameOverMessage.value = 'Game Over! Click to restart';
@@ -321,7 +421,7 @@ const render = () => {
     ctx.fillStyle = COLORS.WHITE;
     ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
   }
-  
+
   // Apply screen shake
   if (screenShake.value > 0) {
     const offsetX = Math.floor(Math.random() * 10 - 5);
@@ -329,25 +429,25 @@ const render = () => {
     ctx.save();
     ctx.translate(offsetX, offsetY);
   }
-  
+
   // Draw player - blinking when invulnerable
   if (!player.invulnerable || Math.floor(Date.now() / 100) % 2) {
     ctx.fillStyle = COLORS.BLUE;
     ctx.fillRect(player.x, player.y, player.width, player.height);
   }
-  
+
   // Draw enemies
   ctx.fillStyle = COLORS.RED;
   for (const enemy of enemies.value) {
     ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
   }
-  
+
   // Draw coins
   ctx.fillStyle = COLORS.GOLD;
   for (const coin of coins.value) {
     ctx.fillRect(coin.x, coin.y, coin.width, coin.height);
   }
-  
+
   // Reset transform if screen shake was applied
   if (screenShake.value > 0) {
     ctx.restore();
@@ -366,13 +466,13 @@ const checkRectCollision = (rectA, rectB) => {
 const handleKeyDown = (e) => {
   if (e.code === 'Space') {
     if (!player.jumping) {
-      player.velocityY = -20;
+      player.velocityY = -20 * (player.jumpPower || 1);
       player.jumping = true;
     }
   } else if (e.code === 'ArrowLeft') {
-    player.velocityX = -8;
+    player.velocityX = -8 * (player.speedMultiplier || 1);
   } else if (e.code === 'ArrowRight') {
-    player.velocityX = 8;
+    player.velocityX = 8 * (player.speedMultiplier || 1);
   } else if (e.code === 'KeyR' && gameOver.value) {
     restartGame();
   }
@@ -412,6 +512,53 @@ onUnmounted(() => {
   width: 100%;
   height: 100vh;
   position: relative;
+}
+
+.shop {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  padding: 2rem;
+  border-radius: 10px;
+  color: white;
+  text-align: center;
+  z-index: 1000;
+}
+
+.buff-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.buff-item {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.buff-item button {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  margin-top: 0.5rem;
+  cursor: pointer;
+}
+
+.buff-item button:disabled {
+  background: #666;
+  cursor: not-allowed;
+}
+
+.proceed-button {
+  background: #2196F3;
+  color: white;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
 }
 
 canvas {
