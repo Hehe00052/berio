@@ -21,381 +21,386 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'MarioGame',
-  data() {
-    return {
-      gameStarted: false,
-      playerName: 'Player',
-      canvas: null,
-      ctx: null,
-      gameOver: false,
-      gameOverMessage: '',
-      score: 0,
-      lives: 3,
-      currentLevel: 1,
-      maxLevels: 3,
-      screenShake: 0,
-      deathEffect: 0,
-      
-      // Game entities
-      player: null,
-      enemies: [],
-      coins: [],
-      
-      // Game loop
-      animationFrameId: null,
-      lastTime: 0,
-      
-      // Constants
-      SCREEN_WIDTH: 800,
-      SCREEN_HEIGHT: 600,
-      COLORS: {
-        WHITE: '#FFFFFF',
-        BLUE: '#0000FF',
-        RED: '#FF0000',
-        BLACK: '#000000',
-        GOLD: '#FFD700'
-      }
-    }
-  },
+<script setup>
+import { ref, reactive, onUnmounted, nextTick } from 'vue';
+
+// Reactive state
+const gameStarted = ref(false);
+const playerName = ref('Player');
+const gameCanvas = ref(null);
+let ctx = null;
+const gameOver = ref(false);
+const gameOverMessage = ref('');
+const score = ref(0);
+const lives = ref(3);
+const currentLevel = ref(1);
+const maxLevels = 3;
+const screenShake = ref(0);
+const deathEffect = ref(0);
+
+// Game entities
+const player = reactive({
+  name: playerName.value,
+  width: 30,
+  height: 60,
+  x: 50,
+  y: 0,
+  initialX: 50,
+  initialY: 0,
+  velocityX: 0,
+  velocityY: 0,
+  jumping: false,
+  invulnerable: false,
+  invulnerableTimer: 0
+});
+
+const enemies = ref([]);
+const coins = ref([]);
+
+// Game loop
+let animationFrameId = null;
+let lastTime = 0;
+
+// Constants
+const SCREEN_WIDTH = 800;
+const SCREEN_HEIGHT = 600;
+const COLORS = {
+  WHITE: '#FFFFFF',
+  BLUE: '#0000FF',
+  RED: '#FF0000',
+  BLACK: '#000000',
+  GOLD: '#FFD700'
+};
+
+// Methods
+const startGame = () => {
+  gameStarted.value = true;
+  nextTick(() => {
+    initGame();
+  });
+};
+
+const initGame = () => {
+  ctx = gameCanvas.value.getContext('2d');
   
-  methods: {
-    startGame() {
-      this.gameStarted = true;
-      this.$nextTick(() => {
-        this.initGame();
-      });
-    },
-    
-    initGame() {
-      this.canvas = this.$refs.gameCanvas;
-      this.ctx = this.canvas.getContext('2d');
-      
-      this.score = 0;
-      this.lives = 3;
-      this.currentLevel = 1;
-      this.gameOver = false;
-      
-      this.setupLevel(this.currentLevel);
-      this.gameLoop();
-      
-      // Setup keyboard controls
-      window.addEventListener('keydown', this.handleKeyDown);
-      window.addEventListener('keyup', this.handleKeyUp);
-    },
-    
-    setupLevel(level) {
-      // Reset entities
-      this.enemies = [];
-      this.coins = [];
-      
-      // Reset player
-      this.player = {
-        name: this.playerName,
-        width: 30,
-        height: 60,
-        x: 50,
-        y: this.SCREEN_HEIGHT - 120,
-        initialX: 50,
-        initialY: this.SCREEN_HEIGHT - 120,
-        velocityX: 0,
-        velocityY: 0,
-        jumping: false,
-        invulnerable: false,
-        invulnerableTimer: 0
-      };
-      
-      // Generate enemies based on level
-      const numEnemies = level * 5;
-      const safeZoneX = 150;
-      const safeZoneY = 80;
-      
-      for (let i = 0; i < numEnemies; i++) {
-        let x, y;
-        
-        // Find a safe position away from the player's spawn
-        do {
-          x = Math.floor(Math.random() * (this.SCREEN_WIDTH - 30));
-          y = Math.floor(Math.random() * (this.SCREEN_HEIGHT - 30 - safeZoneY)) + safeZoneY;
-        } while (
-          x >= this.player.initialX - safeZoneX && 
-          x <= this.player.initialX + safeZoneX &&
-          y >= this.player.initialY - safeZoneX && 
-          y <= this.player.initialY + safeZoneX
-        );
-        
-        this.enemies.push({
-          x,
-          y,
-          width: 30,
-          height: 30,
-          velocityX: Math.random() < 0.5 ? -2 : 2,
-          velocityY: Math.random() < 0.5 ? -2 : 2
-        });
-      }
-    },
-    
-    gameLoop(timestamp) {
-      if (!this.lastTime) this.lastTime = timestamp;
-      const deltaTime = timestamp - this.lastTime;
-      this.lastTime = timestamp;
-      
-      if (!this.gameOver) {
-        this.update(deltaTime);
-        this.render();
-      }
-      
-      this.animationFrameId = requestAnimationFrame(this.gameLoop);
-    },
-    
-    update() {
-      const oldY = this.player.y;
-      
-      // Update player
-      this.updatePlayer();
-      
-      // Update enemies
-      this.updateEnemies();
-      
-      // Update coins
-      this.updateCoins();
-      
-      // Check collisions
-      this.checkCollisions(oldY);
-      
-      // Check level completion
-      if (this.enemies.length === 0) {
-        if (this.currentLevel < this.maxLevels) {
-          this.currentLevel++;
-          this.setupLevel(this.currentLevel);
-        } else {
-          this.gameOver = true;
-          this.gameOverMessage = 'You Win! Click to play again';
-        }
-      }
-      
-      // Update effects
-      if (this.screenShake > 0) this.screenShake--;
-      if (this.deathEffect > 0) this.deathEffect--;
-    },
-    
-    updatePlayer() {
-      // Apply gravity
-      this.player.velocityY += 0.5;
-      
-      // Apply velocity
-      this.player.y += this.player.velocityY;
-      this.player.x += this.player.velocityX;
-      
-      // Check boundaries
-      if (this.player.y + this.player.height > this.SCREEN_HEIGHT) {
-        this.player.y = this.SCREEN_HEIGHT - this.player.height;
-        this.player.jumping = false;
-        this.player.velocityY = 0;
-      }
-      
-      if (this.player.y < 0) {
-        this.player.y = 0;
-        this.player.velocityY = 0;
-      }
-      
-      if (this.player.x < 0) {
-        this.player.x = 0;
-      }
-      
-      if (this.player.x + this.player.width > this.SCREEN_WIDTH) {
-        this.player.x = this.SCREEN_WIDTH - this.player.width;
-      }
-      
-      // Update invulnerability
-      if (this.player.invulnerable) {
-        this.player.invulnerableTimer++;
-        if (this.player.invulnerableTimer > 60) {
-          this.player.invulnerable = false;
-          this.player.invulnerableTimer = 0;
-        }
-      }
-    },
-    
-    updateEnemies() {
-      for (const enemy of this.enemies) {
-        enemy.x += enemy.velocityX;
-        enemy.y += enemy.velocityY;
-        
-        // Bounce off walls
-        if (enemy.x <= 0 || enemy.x + enemy.width >= this.SCREEN_WIDTH) {
-          enemy.velocityX *= -1;
-        }
-        
-        if (enemy.y <= 80 || enemy.y + enemy.height >= this.SCREEN_HEIGHT) {
-          enemy.velocityY *= -1;
-        }
-      }
-    },
-    
-    updateCoins() {
-      for (let i = this.coins.length - 1; i >= 0; i--) {
-        const coin = this.coins[i];
-        
-        // Apply gravity
-        coin.velocityY += 0.5;
-        coin.y += coin.velocityY;
-        
-        // Check floor
-        if (coin.y + coin.height > this.SCREEN_HEIGHT) {
-          coin.y = this.SCREEN_HEIGHT - coin.height;
-          coin.velocityY = 0;
-        }
-      }
-    },
-    
-    checkCollisions(oldY) {
-      // Check coin collisions
-      for (let i = this.coins.length - 1; i >= 0; i--) {
-        const coin = this.coins[i];
-        if (this.checkRectCollision(this.player, coin)) {
-          this.coins.splice(i, 1);
-          this.score += 10;
-        }
-      }
-      
-      // Check enemy collisions
-      for (let i = this.enemies.length - 1; i >= 0; i--) {
-        const enemy = this.enemies[i];
-        if (this.checkRectCollision(this.player, enemy)) {
-          // Check if player is jumping on enemy
-          if (oldY + this.player.height <= enemy.y + 10 && 
-              this.player.y + this.player.height >= enemy.y) {
-            // Convert enemy to coins
-            this.convertEnemyToCoins(enemy);
-            this.enemies.splice(i, 1);
-            this.player.velocityY = -10; // Bounce up
-          } else if (!this.player.invulnerable) {
-            // Player hit by enemy
-            this.playerDie();
-          }
-        }
-      }
-    },
-    
-    convertEnemyToCoins(enemy) {
-      for (let i = 0; i < 3; i++) {
-        this.coins.push({
-          x: enemy.x + Math.random() * 20 - 10,
-          y: enemy.y + Math.random() * 20 - 10,
-          width: 15,
-          height: 15,
-          velocityY: -10,
-          velocityX: 0
-        });
-      }
-    },
-    
-    playerDie() {
-      this.lives--;
-      this.player.x = this.player.initialX;
-      this.player.y = this.player.initialY;
-      this.player.invulnerable = true;
-      this.screenShake = 30;
-      this.deathEffect = 60;
-      
-      if (this.lives <= 0) {
-        this.gameOver = true;
-        this.gameOverMessage = 'Game Over! Click to restart';
-      }
-    },
-    
-    render() {
-      // Clear canvas
-      if (this.deathEffect > 0) {
-        this.ctx.fillStyle = this.COLORS.RED;
-        this.ctx.fillRect(0, 0, this.SCREEN_WIDTH, this.SCREEN_HEIGHT);
-      } else {
-        this.ctx.fillStyle = this.COLORS.WHITE;
-        this.ctx.fillRect(0, 0, this.SCREEN_WIDTH, this.SCREEN_HEIGHT);
-      }
-      
-      // Apply screen shake
-      if (this.screenShake > 0) {
-        const offsetX = Math.floor(Math.random() * 10 - 5);
-        const offsetY = Math.floor(Math.random() * 10 - 5);
-        this.ctx.save();
-        this.ctx.translate(offsetX, offsetY);
-      }
-      
-      // Draw player - blinking when invulnerable
-      if (!this.player.invulnerable || Math.floor(Date.now() / 100) % 2) {
-        this.ctx.fillStyle = this.COLORS.BLUE;
-        this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
-      }
-      
-      // Draw enemies
-      this.ctx.fillStyle = this.COLORS.RED;
-      for (const enemy of this.enemies) {
-        this.ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-      }
-      
-      // Draw coins
-      this.ctx.fillStyle = this.COLORS.GOLD;
-      for (const coin of this.coins) {
-        this.ctx.fillRect(coin.x, coin.y, coin.width, coin.height);
-      }
-      
-      // Reset transform if screen shake was applied
-      if (this.screenShake > 0) {
-        this.ctx.restore();
-      }
-    },
-    
-    checkRectCollision(rectA, rectB) {
-      return (
-        rectA.x < rectB.x + rectB.width &&
-        rectA.x + rectA.width > rectB.x &&
-        rectA.y < rectB.y + rectB.height &&
-        rectA.y + rectA.height > rectB.y
-      );
-    },
-    
-    handleKeyDown(e) {
-      if (e.code === 'Space') {
-        if (!this.player.jumping) {
-          this.player.velocityY = -20;
-          this.player.jumping = true;
-        }
-      } else if (e.code === 'ArrowLeft') {
-        this.player.velocityX = -8;
-      } else if (e.code === 'ArrowRight') {
-        this.player.velocityX = 8;
-      } else if (e.code === 'KeyR' && this.gameOver) {
-        this.restartGame();
-      }
-    },
-    
-    handleKeyUp(e) {
-      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
-        this.player.velocityX = 0;
-      }
-    },
-    
-    restartGame() {
-      // Reset game state
-      this.score = 0;
-      this.lives = 3;
-      this.currentLevel = 1;
-      this.gameOver = false;
-      this.setupLevel(this.currentLevel);
-    }
-  },
+  score.value = 0;
+  lives.value = 3;
+  currentLevel.value = 1;
+  gameOver.value = false;
   
-  beforeUnmount() {
-    // Clean up event listeners
-    window.removeEventListener('keydown', this.handleKeyDown);
-    window.removeEventListener('keyup', this.handleKeyUp);
-    cancelAnimationFrame(this.animationFrameId);
+  setupLevel(currentLevel.value);
+  gameLoop();
+  
+  // Setup keyboard controls
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+};
+
+const setupLevel = (level) => {
+  // Reset entities
+  enemies.value = [];
+  coins.value = [];
+  
+  // Reset player
+  player.initialY = SCREEN_HEIGHT - 120;
+  player.y = player.initialY;
+  player.x = player.initialX;
+  player.velocityX = 0;
+  player.velocityY = 0;
+  player.jumping = false;
+  player.invulnerable = false;
+  player.invulnerableTimer = 0;
+  player.name = playerName.value;
+  
+  // Generate enemies based on level
+  const numEnemies = level * 5;
+  const safeZoneX = 150;
+  const safeZoneY = 80;
+  
+  for (let i = 0; i < numEnemies; i++) {
+    let x, y;
+    
+    // Find a safe position away from the player's spawn
+    do {
+      x = Math.floor(Math.random() * (SCREEN_WIDTH - 30));
+      y = Math.floor(Math.random() * (SCREEN_HEIGHT - 30 - safeZoneY)) + safeZoneY;
+    } while (
+      x >= player.initialX - safeZoneX && 
+      x <= player.initialX + safeZoneX &&
+      y >= player.initialY - safeZoneX && 
+      y <= player.initialY + safeZoneX
+    );
+    
+    enemies.value.push({
+      x,
+      y,
+      width: 30,
+      height: 30,
+      velocityX: Math.random() < 0.5 ? -2 : 2,
+      velocityY: Math.random() < 0.5 ? -2 : 2
+    });
   }
-}
+};
+
+const gameLoop = (timestamp) => {
+  if (!lastTime) lastTime = timestamp;
+  const deltaTime = timestamp - lastTime;
+  lastTime = timestamp;
+  
+  if (!gameOver.value) {
+    update(deltaTime);
+    render();
+  }
+  
+  animationFrameId = requestAnimationFrame(gameLoop);
+};
+
+const update = () => {
+  const oldY = player.y;
+  
+  // Update player
+  updatePlayer();
+  
+  // Update enemies
+  updateEnemies();
+  
+  // Update coins
+  updateCoins();
+  
+  // Check collisions
+  checkCollisions(oldY);
+  
+  // Check level completion
+  if (enemies.value.length === 0) {
+    if (currentLevel.value < maxLevels) {
+      currentLevel.value++;
+      setupLevel(currentLevel.value);
+    } else {
+      gameOver.value = true;
+      gameOverMessage.value = 'You Win! Click to play again';
+    }
+  }
+  
+  // Update effects
+  if (screenShake.value > 0) screenShake.value--;
+  if (deathEffect.value > 0) deathEffect.value--;
+};
+
+const updatePlayer = () => {
+  // Apply gravity
+  player.velocityY += 0.5;
+  
+  // Apply velocity
+  player.y += player.velocityY;
+  player.x += player.velocityX;
+  
+  // Check boundaries
+  if (player.y + player.height > SCREEN_HEIGHT) {
+    player.y = SCREEN_HEIGHT - player.height;
+    player.jumping = false;
+    player.velocityY = 0;
+  }
+  
+  if (player.y < 0) {
+    player.y = 0;
+    player.velocityY = 0;
+  }
+  
+  if (player.x < 0) {
+    player.x = 0;
+  }
+  
+  if (player.x + player.width > SCREEN_WIDTH) {
+    player.x = SCREEN_WIDTH - player.width;
+  }
+  
+  // Update invulnerability
+  if (player.invulnerable) {
+    player.invulnerableTimer++;
+    if (player.invulnerableTimer > 60) {
+      player.invulnerable = false;
+      player.invulnerableTimer = 0;
+    }
+  }
+};
+
+const updateEnemies = () => {
+  for (const enemy of enemies.value) {
+    enemy.x += enemy.velocityX;
+    enemy.y += enemy.velocityY;
+    
+    // Bounce off walls
+    if (enemy.x <= 0 || enemy.x + enemy.width >= SCREEN_WIDTH) {
+      enemy.velocityX *= -1;
+    }
+    
+    if (enemy.y <= 80 || enemy.y + enemy.height >= SCREEN_HEIGHT) {
+      enemy.velocityY *= -1;
+    }
+  }
+};
+
+const updateCoins = () => {
+  for (let i = coins.value.length - 1; i >= 0; i--) {
+    const coin = coins.value[i];
+    
+    // Apply gravity
+    coin.velocityY += 0.5;
+    coin.y += coin.velocityY;
+    
+    // Check floor
+    if (coin.y + coin.height > SCREEN_HEIGHT) {
+      coin.y = SCREEN_HEIGHT - coin.height;
+      coin.velocityY = 0;
+    }
+  }
+};
+
+const checkCollisions = (oldY) => {
+  // Check coin collisions
+  for (let i = coins.value.length - 1; i >= 0; i--) {
+    const coin = coins.value[i];
+    if (checkRectCollision(player, coin)) {
+      coins.value.splice(i, 1);
+      score.value += 10;
+    }
+  }
+  
+  // Check enemy collisions
+  for (let i = enemies.value.length - 1; i >= 0; i--) {
+    const enemy = enemies.value[i];
+    if (checkRectCollision(player, enemy)) {
+      // Check if player is jumping on enemy
+      if (oldY + player.height <= enemy.y + 10 && 
+          player.y + player.height >= enemy.y) {
+        // Convert enemy to coins
+        convertEnemyToCoins(enemy);
+        enemies.value.splice(i, 1);
+        player.velocityY = -10; // Bounce up
+      } else if (!player.invulnerable) {
+        // Player hit by enemy
+        playerDie();
+      }
+    }
+  }
+};
+
+const convertEnemyToCoins = (enemy) => {
+  for (let i = 0; i < 3; i++) {
+    coins.value.push({
+      x: enemy.x + Math.random() * 20 - 10,
+      y: enemy.y + Math.random() * 20 - 10,
+      width: 15,
+      height: 15,
+      velocityY: -10,
+      velocityX: 0
+    });
+  }
+};
+
+const playerDie = () => {
+  lives.value--;
+  player.x = player.initialX;
+  player.y = player.initialY;
+  player.invulnerable = true;
+  screenShake.value = 30;
+  deathEffect.value = 60;
+  
+  if (lives.value <= 0) {
+    gameOver.value = true;
+    gameOverMessage.value = 'Game Over! Click to restart';
+  }
+};
+
+const render = () => {
+  // Clear canvas
+  if (deathEffect.value > 0) {
+    ctx.fillStyle = COLORS.RED;
+    ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+  } else {
+    ctx.fillStyle = COLORS.WHITE;
+    ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+  }
+  
+  // Apply screen shake
+  if (screenShake.value > 0) {
+    const offsetX = Math.floor(Math.random() * 10 - 5);
+    const offsetY = Math.floor(Math.random() * 10 - 5);
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+  }
+  
+  // Draw player - blinking when invulnerable
+  if (!player.invulnerable || Math.floor(Date.now() / 100) % 2) {
+    ctx.fillStyle = COLORS.BLUE;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+  }
+  
+  // Draw enemies
+  ctx.fillStyle = COLORS.RED;
+  for (const enemy of enemies.value) {
+    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+  }
+  
+  // Draw coins
+  ctx.fillStyle = COLORS.GOLD;
+  for (const coin of coins.value) {
+    ctx.fillRect(coin.x, coin.y, coin.width, coin.height);
+  }
+  
+  // Reset transform if screen shake was applied
+  if (screenShake.value > 0) {
+    ctx.restore();
+  }
+};
+
+const checkRectCollision = (rectA, rectB) => {
+  return (
+    rectA.x < rectB.x + rectB.width &&
+    rectA.x + rectA.width > rectB.x &&
+    rectA.y < rectB.y + rectB.height &&
+    rectA.y + rectA.height > rectB.y
+  );
+};
+
+const handleKeyDown = (e) => {
+  if (e.code === 'Space') {
+    if (!player.jumping) {
+      player.velocityY = -20;
+      player.jumping = true;
+    }
+  } else if (e.code === 'ArrowLeft') {
+    player.velocityX = -8;
+  } else if (e.code === 'ArrowRight') {
+    player.velocityX = 8;
+  } else if (e.code === 'KeyR' && gameOver.value) {
+    restartGame();
+  }
+};
+
+const handleKeyUp = (e) => {
+  if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    player.velocityX = 0;
+  }
+};
+
+const restartGame = () => {
+  // Reset game state
+  score.value = 0;
+  lives.value = 3;
+  currentLevel.value = 1;
+  gameOver.value = false;
+  setupLevel(currentLevel.value);
+};
+
+// Cleanup
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keyup', handleKeyUp);
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+  }
+});
 </script>
 
 <style scoped>
