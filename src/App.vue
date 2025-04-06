@@ -1,24 +1,24 @@
 <template>
   <div class="game-container">
-    <div v-if="gameStarted">
-      <canvas ref="gameCanvas" width="800" height="600"></canvas>
-      <div class="game-info">
-        <p>Player: {{ playerName }}</p>
-        <p>Score: {{ score }}</p>
-        <p>Lives: {{ lives }}</p>
-        <p>Level: {{ currentLevel }}</p>
-      </div>
-      <div v-if="gameOver" class="game-over">
-        <h2>{{ gameOverMessage }}</h2>
-        <button @click="restartGame">Play Again</button>
-      </div>
+  <div v-if="gameStarted">
+    <canvas ref="gameCanvas" width="800" height="600"></canvas>
+    <div class="game-info">
+      <p>Player: {{ playerName }}</p>
+      <p>Score: {{ score }}</p>
+      <p>Lives: {{ lives }}</p>
+      <p>Level: {{ currentLevel }}</p>
     </div>
-    <div v-else class="name-input">
-      <h2>Enter your name:</h2>
-      <input v-model="playerName" @keyup.enter="startGame" placeholder="Player" />
-      <button @click="startGame">Start Game</button>
+    <div v-if="gameOver" class="game-over">
+      <h2>{{ gameOverMessage }}</h2>
+      <button @click="restartGame">Play Again</button>
     </div>
   </div>
+  <div v-else class="name-input">
+    <h2>Enter your name:</h2>
+    <input v-model="playerName" @keyup.enter="startGame" placeholder="Player" />
+    <button @click="startGame">Start Game</button>
+  </div>
+</div>
   <div v-if="showShop" class="shop">
     <h2>Shop - Level {{ currentLevel + 1 }}</h2>
     <p>Current Score: {{ score }}</p>
@@ -141,6 +141,7 @@ const initGame = () => {
   window.addEventListener('keyup', handleKeyUp);
 };
 
+// Trong hàm setupLevel, giảm tốc độ enemies
 const setupLevel = (level) => {
   // Reset entities
   enemies.value = [];
@@ -158,7 +159,7 @@ const setupLevel = (level) => {
   player.name = playerName.value;
 
   // Generate enemies based on level
-  const numEnemies = level * 5;
+  const numEnemies = level * 3;
   const safeZoneX = 150;
   const safeZoneY = 80;
 
@@ -181,8 +182,8 @@ const setupLevel = (level) => {
       y,
       width: 30,
       height: 30,
-      velocityX: Math.random() < 0.5 ? -2 : 2,
-      velocityY: Math.random() < 0.5 ? -2 : 2
+      velocityX: Math.random() < 0.5 ? -1 : 1, // Giảm từ -2/2 xuống -1/1
+      velocityY: Math.random() < 0.5 ? -1 : 1  // Giảm từ -2/2 xuống -1/1
     });
   }
   player.speedMultiplier = 1;
@@ -190,25 +191,7 @@ const setupLevel = (level) => {
   // Giữ nguyên jumpPower giữa các màn
 };
 
-const proceedToNextLevel = () => {
-  showShop.value = false;
-  currentLevel.value++;
-  setupLevel(currentLevel.value);
-};
-
-const gameLoop = (timestamp) => {
-  if (!lastTime) lastTime = timestamp;
-  const deltaTime = timestamp - lastTime;
-  lastTime = timestamp;
-
-  if (!gameOver.value) {
-    update(deltaTime);
-    render();
-  }
-
-  animationFrameId = requestAnimationFrame(gameLoop);
-};
-
+// In the update() function, remove the duplicate level completion check:
 const update = () => {
   const oldY = player.y;
 
@@ -224,25 +207,15 @@ const update = () => {
   // Check collisions
   checkCollisions(oldY);
 
-  // Check level completion
-  if (enemies.value.length === 0) {
-        if (currentLevel.value < maxLevels) {
-            showShop.value = true;
-            gameStarted.value = false; // Tạm dừng game loop
-        } else {
-            gameOver.value = true;
-            gameOverMessage.value = 'You Win! Click to play again';
-        }
-    }
-
   // Update effects
   if (screenShake.value > 0) screenShake.value--;
   if (deathEffect.value > 0) deathEffect.value--;
 
-  // Check level completion
+  // Check level completion (keep only this one, remove the duplicate below)
   if (enemies.value.length === 0) {
     if (currentLevel.value < maxLevels) {
       showShop.value = true;
+      cancelAnimationFrame(animationFrameId); // Stop the game loop properly
     } else {
       gameOver.value = true;
       gameOverMessage.value = 'You Win! Click to play again';
@@ -250,9 +223,37 @@ const update = () => {
   }
 };
 
+// Fix the proceedToNextLevel function:
+const proceedToNextLevel = () => {
+  showShop.value = false;
+  currentLevel.value++;
+  setupLevel(currentLevel.value);
+  gameStarted.value = true; // Ensure the game is started
+  
+  // Properly restart the game loop
+  lastTime = 0;
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+  }
+  animationFrameId = requestAnimationFrame(gameLoop);
+};
+
+const gameLoop = (timestamp) => {
+  if (!lastTime) lastTime = timestamp;
+  const deltaTime = timestamp - lastTime;
+  lastTime = timestamp;
+
+  if (!gameOver.value) {
+    update(deltaTime);
+    render();
+  }
+
+  animationFrameId = requestAnimationFrame(gameLoop);
+};
+
 const updatePlayer = () => {
   // Apply gravity
-  player.velocityY += 0.5;
+  player.velocityY += 0.3;
 
   // Apply velocity
   player.y += player.velocityY;
@@ -466,13 +467,13 @@ const checkRectCollision = (rectA, rectB) => {
 const handleKeyDown = (e) => {
   if (e.code === 'Space') {
     if (!player.jumping) {
-      player.velocityY = -20 * (player.jumpPower || 1);
+      player.velocityY = -15 * (player.jumpPower || 1); // Giảm từ -20 xuống -15
       player.jumping = true;
     }
   } else if (e.code === 'ArrowLeft') {
-    player.velocityX = -8 * (player.speedMultiplier || 1);
+    player.velocityX = -5 * (player.speedMultiplier || 1); // Giảm từ -8 xuống -5
   } else if (e.code === 'ArrowRight') {
-    player.velocityX = 8 * (player.speedMultiplier || 1);
+    player.velocityX = 5 * (player.speedMultiplier || 1); // Giảm từ 8 xuống 5
   } else if (e.code === 'KeyR' && gameOver.value) {
     restartGame();
   }
@@ -494,11 +495,13 @@ const restartGame = () => {
 };
 
 // Cleanup
+// Cleanup
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('keyup', handleKeyUp);
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
 });
 </script>
