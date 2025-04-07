@@ -1,24 +1,24 @@
 <template>
   <div class="game-container">
-  <div v-if="gameStarted">
-    <canvas ref="gameCanvas" width="800" height="600"></canvas>
-    <div class="game-info">
-      <p>Player: {{ playerName }}</p>
-      <p>Score: {{ score }}</p>
-      <p>Lives: {{ lives }}</p>
-      <p>Level: {{ currentLevel }}</p>
+    <div v-if="gameStarted">
+      <canvas ref="gameCanvas" width="800" height="600"></canvas>
+      <div class="game-info">
+        <p>Player: {{ playerName }}</p>
+        <p>Score: {{ score }}</p>
+        <p>Lives: {{ lives }}</p>
+        <p>Level: {{ currentLevel }}</p>
+      </div>
+      <div v-if="gameOver" class="game-over">
+        <h2>{{ gameOverMessage }}</h2>
+        <button @click="restartGame">Play Again</button>
+      </div>
     </div>
-    <div v-if="gameOver" class="game-over">
-      <h2>{{ gameOverMessage }}</h2>
-      <button @click="restartGame">Play Again</button>
+    <div v-else class="name-input">
+      <h2>Enter your name:</h2>
+      <input v-model="playerName" @keyup.enter="startGame" placeholder="Player" />
+      <button @click="startGame">Start Game</button>
     </div>
   </div>
-  <div v-else class="name-input">
-    <h2>Enter your name:</h2>
-    <input v-model="playerName" @keyup.enter="startGame" placeholder="Player" />
-    <button @click="startGame">Start Game</button>
-  </div>
-</div>
   <div v-if="showShop" class="shop">
     <h2>Shop - Level {{ currentLevel + 1 }}</h2>
     <p>Current Score: {{ score }}</p>
@@ -82,7 +82,6 @@ const availableBuffs = ref([
   }
 ]);
 
-
 // Game entities
 const player = reactive({
   name: playerName.value,
@@ -141,7 +140,6 @@ const initGame = () => {
   window.addEventListener('keyup', handleKeyUp);
 };
 
-// Trong hàm setupLevel, giảm tốc độ enemies
 const setupLevel = (level) => {
   // Reset entities
   enemies.value = [];
@@ -160,38 +158,24 @@ const setupLevel = (level) => {
 
   // Generate enemies based on level
   const numEnemies = level * 3;
-  const safeZoneX = 150;
-  const safeZoneY = 80;
 
   for (let i = 0; i < numEnemies; i++) {
-    let x, y;
-
-    // Find a safe position away from the player's spawn
-    do {
-      x = Math.floor(Math.random() * (SCREEN_WIDTH - 30));
-      y = Math.floor(Math.random() * (SCREEN_HEIGHT - 30 - safeZoneY)) + safeZoneY;
-    } while (
-      x >= player.initialX - safeZoneX &&
-      x <= player.initialX + safeZoneX &&
-      y >= player.initialY - safeZoneX &&
-      y <= player.initialY + safeZoneX
-    );
-
+    const x = Math.floor(Math.random() * (SCREEN_WIDTH - 30));
+    const y = Math.floor(Math.random() * (SCREEN_HEIGHT - 30));
     enemies.value.push({
       x,
       y,
       width: 30,
       height: 30,
-      velocityX: Math.random() < 0.5 ? -1 : 1, // Giảm từ -2/2 xuống -1/1
-      velocityY: Math.random() < 0.5 ? -1 : 1  // Giảm từ -2/2 xuống -1/1
+      velocityX: Math.random() < 0.5 ? -1 : 1,
+      velocityY: Math.random() < 0.5 ? -1 : 1
     });
   }
   player.speedMultiplier = 1;
   player.hasShield = false;
-  // Giữ nguyên jumpPower giữa các màn
 };
 
-// In the update() function, remove the duplicate level completion check:
+// Update function remains the same
 const update = () => {
   const oldY = player.y;
 
@@ -211,7 +195,7 @@ const update = () => {
   if (screenShake.value > 0) screenShake.value--;
   if (deathEffect.value > 0) deathEffect.value--;
 
-  // Check level completion (keep only this one, remove the duplicate below)
+  // Check level completion
   if (enemies.value.length === 0) {
     if (currentLevel.value < maxLevels) {
       showShop.value = true;
@@ -223,13 +207,12 @@ const update = () => {
   }
 };
 
-// Fix the proceedToNextLevel function:
 const proceedToNextLevel = () => {
   showShop.value = false;
   currentLevel.value++;
   setupLevel(currentLevel.value);
   gameStarted.value = true; // Ensure the game is started
-  
+
   // Properly restart the game loop
   lastTime = 0;
   if (animationFrameId) {
@@ -304,8 +287,7 @@ const purchaseBuff = (buff) => {
   }
 };
 
-
-// Thêm hàm áp dụng buff
+// Hàm áp dụng buff
 const applyBuff = (buff) => {
   switch (buff.type) {
     case 'life':
@@ -333,7 +315,7 @@ const updateEnemies = () => {
       enemy.velocityX *= -1;
     }
 
-    if (enemy.y <= 80 || enemy.y + enemy.height >= SCREEN_HEIGHT) {
+    if (enemy.y <= 0 || enemy.y + enemy.height >= SCREEN_HEIGHT) {
       enemy.velocityY *= -1;
     }
   }
@@ -495,7 +477,6 @@ const restartGame = () => {
 };
 
 // Cleanup
-// Cleanup
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('keyup', handleKeyUp);
@@ -509,11 +490,12 @@ onUnmounted(() => {
 <style scoped>
 .game-container {
   display: flex;
+  margin-top: 2%;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 100vh;
+  height: 100%;
   position: relative;
 }
 
@@ -571,12 +553,13 @@ canvas {
 
 .game-info {
   display: flex;
-  width: 800px;
+  width: 95%;
   justify-content: space-between;
-  padding: 10px;
+  padding: 1.5%;
   background-color: #f5f5f5;
-  border: 1px solid #ddd;
-  margin-top: 10px;
+  border: 0.5% solid #ddd;
+  margin-top: 2%;
+  margin-left: 1%;
 }
 
 .game-info p {
