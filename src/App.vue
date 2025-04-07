@@ -50,7 +50,7 @@ const gameOverMessage = ref('');
 const score = ref(0);
 const lives = ref(3);
 const currentLevel = ref(1);
-const maxLevels = 3;
+const maxLevels = 101;
 const screenShake = ref(0);
 const deathEffect = ref(0);
 
@@ -297,7 +297,7 @@ const applyBuff = (buff) => {
       player.jumpPower = 1.25; // Tăng 25%
       break;
     case 'speed':
-      player.speedMultiplier = 1.2; // Tăng 20%
+      player.speedMultiplier = 2; // Tăng 20%
       break;
     case 'shield':
       player.hasShield = true;
@@ -307,16 +307,40 @@ const applyBuff = (buff) => {
 
 const updateEnemies = () => {
   for (const enemy of enemies.value) {
+    // Cập nhật vị trí
     enemy.x += enemy.velocityX;
     enemy.y += enemy.velocityY;
 
-    // Bounce off walls
-    if (enemy.x <= 0 || enemy.x + enemy.width >= SCREEN_WIDTH) {
-      enemy.velocityX *= -1;
+    // Kiểm tra biên trái
+    if (enemy.x < 0) {
+      enemy.x = 0; // Đặt lại vị trí tại biên
+      enemy.velocityX *= -1; // Đảo ngược hướng ngang
+      enemy.velocityY += (Math.random() - 0.5) * 0.5; // Thêm độ lệch nhỏ cho hướng dọc
+      enemy.velocityY = Math.max(-2, Math.min(2, enemy.velocityY)); // Giới hạn vận tốc dọc
     }
 
-    if (enemy.y <= 0 || enemy.y + enemy.height >= SCREEN_HEIGHT) {
-      enemy.velocityY *= -1;
+    // Kiểm tra biên phải
+    if (enemy.x + enemy.width > SCREEN_WIDTH) {
+      enemy.x = SCREEN_WIDTH - enemy.width; // Đặt lại vị trí tại biên
+      enemy.velocityX *= -1; // Đảo ngược hướng ngang
+      enemy.velocityY += (Math.random() - 0.5) * 0.5; // Thêm độ lệch nhỏ cho hướng dọc
+      enemy.velocityY = Math.max(-2, Math.min(2, enemy.velocityY)); // Giới hạn vận tốc dọc
+    }
+
+    // Kiểm tra biên trên
+    if (enemy.y < 0) {
+      enemy.y = 0; // Đặt lại vị trí tại biên
+      enemy.velocityY *= -1; // Đảo ngược hướng dọc
+      enemy.velocityX += (Math.random() - 0.5) * 0.5; // Thêm độ lệch nhỏ cho hướng ngang
+      enemy.velocityX = Math.max(-2, Math.min(2, enemy.velocityX)); // Giới hạn vận tốc ngang
+    }
+
+    // Kiểm tra biên dưới
+    if (enemy.y + enemy.height > SCREEN_HEIGHT) {
+      enemy.y = SCREEN_HEIGHT - enemy.height; // Đặt lại vị trí tại biên
+      enemy.velocityY *= -1; // Đảo ngược hướng dọc
+      enemy.velocityX += (Math.random() - 0.5) * 0.5; // Thêm độ lệch nhỏ cho hướng ngang
+      enemy.velocityX = Math.max(-2, Math.min(2, enemy.velocityX)); // Giới hạn vận tốc ngang
     }
   }
 };
@@ -472,6 +496,9 @@ const restartGame = () => {
   score.value = 0;
   lives.value = 3;
   currentLevel.value = 1;
+  player.jumpPower = 1; 
+player.speedMultiplier = 1; 
+player.hasShield = false; 
   gameOver.value = false;
   setupLevel(currentLevel.value);
 };
