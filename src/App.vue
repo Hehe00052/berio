@@ -13,10 +13,44 @@
         <button @click="restartGame">Play Again</button>
       </div>
     </div>
-    <div v-else class="name-input">
-      <h2>Enter your name:</h2>
-      <input v-model="playerName" @keyup.enter="startGame" placeholder="Player" />
-      <button @click="startGame">Start Game</button>
+    <div v-else class="welcome-screen">
+      <div class="game-instructions">
+        <h1>Game Instructions</h1>
+        <div class="instructions-content">
+          <h2>How to Play:</h2>
+          <ul>
+            <li><strong>Goal:</strong> Jump on enemies to defeat them and collect coins</li>
+            <li><strong>Controls:</strong>
+              <ul>
+                <li><kbd>←</kbd> <kbd>→</kbd> Arrow keys to move left/right</li>
+                <li><kbd>Space</kbd> to jump</li>
+                <li><kbd>R</kbd> to restart when game over</li>
+              </ul>
+            </li>
+            <li><strong>Gameplay:</strong>
+              <ul>
+                <li>Defeat all enemies in a level to proceed</li>
+                <li>Jump on enemies from above to defeat them</li>
+                <li>Collect coins to increase your score</li>
+                <li>After each level, use points to buy upgrades in the shop</li>
+              </ul>
+            </li>
+            <li><strong>Upgrades:</strong>
+              <ul>
+                <li>Extra Life - Get an additional life</li>
+                <li>Super Jump - Jump 25% higher</li>
+                <li>Speed Boost - Move 20% faster</li>
+                <li>Shield - Start each level with 10 seconds of invulnerability (I'm fixing, dont buy that :3)</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+        <div class="name-input">
+          <h2>Enter your name:</h2>
+          <input v-model="playerName" @keyup.enter="startGame" placeholder="Player" />
+          <button @click="startGame">Start Game</button>
+        </div>
+      </div>
     </div>
   </div>
   <div v-if="showShop" class="shop">
@@ -297,17 +331,17 @@ const purchaseBuff = (buff) => {
   }
 };
 
-// Hàm áp dụng buff
+// Apply buff function
 const applyBuff = (buff) => {
   switch (buff.type) {
     case 'life':
       lives.value++;
       break;
     case 'jump':
-      player.jumpPower = 1.25; // Tăng 25%
+      player.jumpPower = 1.1; // Increase 25%
       break;
     case 'speed':
-      player.speedMultiplier = 2; // Tăng 20%
+      player.speedMultiplier = 1.4; // Increase 40%
       break;
     case 'shield':
       player.hasShield = true;
@@ -317,40 +351,40 @@ const applyBuff = (buff) => {
 
 const updateEnemies = () => {
   for (const enemy of enemies.value) {
-    // Cập nhật vị trí
+    // Update position
     enemy.x += enemy.velocityX;
     enemy.y += enemy.velocityY;
 
-    // Kiểm tra biên trái
+    // Check left boundary
     if (enemy.x < 0) {
-      enemy.x = 0; // Đặt lại vị trí tại biên
-      enemy.velocityX *= -1; // Đảo ngược hướng ngang
-      enemy.velocityY += (Math.random() - 0.5) * 0.5; // Thêm độ lệch nhỏ cho hướng dọc
-      enemy.velocityY = Math.max(-2, Math.min(2, enemy.velocityY)); // Giới hạn vận tốc dọc
+      enemy.x = 0; // Reset position at boundary
+      enemy.velocityX *= -1; // Reverse horizontal direction
+      enemy.velocityY += (Math.random() - 0.5) * 0.5; // Add small deviation to vertical direction
+      enemy.velocityY = Math.max(-2, Math.min(2, enemy.velocityY)); // Limit vertical velocity
     }
 
-    // Kiểm tra biên phải
+    // Check right boundary
     if (enemy.x + enemy.width > SCREEN_WIDTH) {
-      enemy.x = SCREEN_WIDTH - enemy.width; // Đặt lại vị trí tại biên
-      enemy.velocityX *= -1; // Đảo ngược hướng ngang
-      enemy.velocityY += (Math.random() - 0.5) * 0.5; // Thêm độ lệch nhỏ cho hướng dọc
-      enemy.velocityY = Math.max(-2, Math.min(2, enemy.velocityY)); // Giới hạn vận tốc dọc
+      enemy.x = SCREEN_WIDTH - enemy.width; // Reset position at boundary
+      enemy.velocityX *= -1; // Reverse horizontal direction
+      enemy.velocityY += (Math.random() - 0.5) * 0.5; // Add small deviation to vertical direction
+      enemy.velocityY = Math.max(-2, Math.min(2, enemy.velocityY)); // Limit vertical velocity
     }
 
-    // Kiểm tra biên trên
+    // Check top boundary
     if (enemy.y < 0) {
-      enemy.y = 0; // Đặt lại vị trí tại biên
-      enemy.velocityY *= -1; // Đảo ngược hướng dọc
-      enemy.velocityX += (Math.random() - 0.5) * 0.5; // Thêm độ lệch nhỏ cho hướng ngang
-      enemy.velocityX = Math.max(-2, Math.min(2, enemy.velocityX)); // Giới hạn vận tốc ngang
+      enemy.y = 0; // Reset position at boundary
+      enemy.velocityY *= -1; // Reverse vertical direction
+      enemy.velocityX += (Math.random() - 0.5) * 0.5; // Add small deviation to horizontal direction
+      enemy.velocityX = Math.max(-2, Math.min(2, enemy.velocityX)); // Limit horizontal velocity
     }
 
-    // Kiểm tra biên dưới
+    // Check bottom boundary
     if (enemy.y + enemy.height > SCREEN_HEIGHT) {
-      enemy.y = SCREEN_HEIGHT - enemy.height; // Đặt lại vị trí tại biên
-      enemy.velocityY *= -1; // Đảo ngược hướng dọc
-      enemy.velocityX += (Math.random() - 0.5) * 0.5; // Thêm độ lệch nhỏ cho hướng ngang
-      enemy.velocityX = Math.max(-2, Math.min(2, enemy.velocityX)); // Giới hạn vận tốc ngang
+      enemy.y = SCREEN_HEIGHT - enemy.height; // Reset position at boundary
+      enemy.velocityY *= -1; // Reverse vertical direction
+      enemy.velocityX += (Math.random() - 0.5) * 0.5; // Add small deviation to horizontal direction
+      enemy.velocityX = Math.max(-2, Math.min(2, enemy.velocityX)); // Limit horizontal velocity
     }
   }
 };
@@ -377,7 +411,7 @@ const checkCollisions = (oldY) => {
     const coin = coins.value[i];
     if (checkRectCollision(player, coin)) {
       coins.value.splice(i, 1);
-      score.value += coin.value; // Sử dụng giá trị random của coin
+      score.value += coin.value; // Use random coin value
     }
   }
 
@@ -410,7 +444,7 @@ const convertEnemyToCoins = (enemy) => {
       height: 15,
       velocityY: -10,
       velocityX: 0,
-      value: Math.floor(Math.random() * 15) + 5 // 5-20 điểm mỗi coin
+      value: Math.floor(Math.random() * 15) + 5 // 5-20 points per coin
     });
   }
 };
@@ -483,13 +517,13 @@ const checkRectCollision = (rectA, rectB) => {
 const handleKeyDown = (e) => {
   if (e.code === 'Space') {
     if (!player.jumping) {
-      player.velocityY = -15 * (player.jumpPower || 1); // Giảm từ -20 xuống -15
+      player.velocityY = -15 * (player.jumpPower || 1); // Reduced from -20 to -15
       player.jumping = true;
     }
   } else if (e.code === 'ArrowLeft') {
-    player.velocityX = -5 * (player.speedMultiplier || 1); // Giảm từ -8 xuống -5
+    player.velocityX = -5 * (player.speedMultiplier || 1); // Reduced from -8 to -5
   } else if (e.code === 'ArrowRight') {
-    player.velocityX = 5 * (player.speedMultiplier || 1); // Giảm từ 8 xuống 5
+    player.velocityX = 5 * (player.speedMultiplier || 1); // Reduced from 8 to 5
   } else if (e.code === 'KeyR' && gameOver.value) {
     restartGame();
   }
@@ -506,9 +540,9 @@ const restartGame = () => {
   score.value = 0;
   lives.value = 3;
   currentLevel.value = 1;
-  player.jumpPower = 1; 
-player.speedMultiplier = 1; 
-player.hasShield = false; 
+  player.jumpPower = 1;
+  player.speedMultiplier = 1;
+  player.hasShield = false;
   gameOver.value = false;
   setupLevel(currentLevel.value);
 };
@@ -534,6 +568,66 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   position: relative;
+}
+
+.welcome-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+}
+
+.game-instructions {
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  width: 100%;
+}
+
+.game-instructions h1 {
+  color: #2196F3;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 2rem;
+}
+
+.instructions-content {
+  margin-bottom: 2rem;
+}
+
+.instructions-content h2 {
+  color: #333;
+  border-bottom: 2px solid #2196F3;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.instructions-content ul {
+  padding-left: 1.5rem;
+}
+
+.instructions-content li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.instructions-content ul ul {
+  margin-top: 0.5rem;
+}
+
+kbd {
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+  color: #333;
+  display: inline-block;
+  font-size: 0.85rem;
+  font-family: monospace;
+  padding: 2px 5px;
+  margin: 0 3px;
 }
 
 .shop {
@@ -633,7 +727,8 @@ canvas {
   padding: 20px;
   background-color: #f5f5f5;
   border-radius: 8px;
-  width: 400px;
+  width: 100%;
+  margin-top: 1rem;
 }
 
 .name-input input {
