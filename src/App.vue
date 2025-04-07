@@ -145,6 +145,11 @@ const setupLevel = (level) => {
   enemies.value = [];
   coins.value = [];
 
+  // Save buff states before reset
+  const savedJumpPower = player.jumpPower;
+  const savedSpeedMultiplier = player.speedMultiplier;
+  const savedHasShield = player.hasShield;
+
   // Reset player
   player.initialY = SCREEN_HEIGHT - 120;
   player.y = player.initialY;
@@ -155,6 +160,19 @@ const setupLevel = (level) => {
   player.invulnerable = false;
   player.invulnerableTimer = 0;
   player.name = playerName.value;
+
+  // Restore buff states
+  player.jumpPower = savedJumpPower;
+  player.speedMultiplier = savedSpeedMultiplier;
+  player.hasShield = savedHasShield;
+
+  // Apply shield at the beginning of each level if the player has it
+  if (player.hasShield) {
+    player.invulnerable = true;
+    setTimeout(() => {
+      player.invulnerable = false;
+    }, 10000); // 10 seconds of invulnerability
+  }
 
   // Generate enemies based on level
   const numEnemies = level * 3;
@@ -171,8 +189,7 @@ const setupLevel = (level) => {
       velocityY: Math.random() < 0.5 ? -1 : 1
     });
   }
-  player.speedMultiplier = 1;
-  player.hasShield = false;
+
 };
 
 // Update function remains the same
@@ -271,13 +288,6 @@ const updatePlayer = () => {
     }
   }
 
-  if (player.hasShield && currentLevel.value === 1) {
-    player.invulnerable = true;
-    setTimeout(() => {
-      player.invulnerable = false;
-      player.hasShield = false;
-    }, 10000);
-  }
 };
 
 const purchaseBuff = (buff) => {
